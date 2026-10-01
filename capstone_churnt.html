@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zomato Customer Intelligence &amp; Churn Prediction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #15120e;
+    --bg-alt: #1c1811;
+    --card: #211c15;
+    --card-border: #392f22;
+    --cream: #f3ecdd;
+    --muted: #a89c87;
+    --muted-2: #7d7261;
+    --red: #e2503f;
+    --red-dim: rgba(226,80,63,0.15);
+    --saffron: #f0a63c;
+    --saffron-dim: rgba(240,166,60,0.15);
+    --green: #4f9d68;
+    --green-dim: rgba(79,157,104,0.15);
+    --divider: #35291d;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--cream);}
+  body{
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(circle at 15% 8%, rgba(226,80,63,0.06), transparent 40%),
+      radial-gradient(circle at 90% 15%, rgba(240,166,60,0.05), transparent 35%);
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:56px 28px 90px;}
+
+  /* ---------- Header ---------- */
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    font-size:11.5px;
+    color:var(--saffron);
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:18px;
+  }
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--saffron);display:inline-block;}
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(32px, 4.4vw, 52px);
+    line-height:1.05;
+    margin:0 0 14px;
+    letter-spacing:-0.01em;
+  }
+  h1 em{font-style:italic; color:var(--red); font-weight:600;}
+  .sub{
+    color:var(--muted);
+    font-size:16px;
+    max-width:640px;
+    line-height:1.6;
+    margin:0 0 6px;
+  }
+  .note{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    color:var(--muted-2);
+    margin-top:22px;
+    padding-top:14px;
+    border-top:1px dashed var(--divider);
+  }
+
+  /* ---------- Section headings ---------- */
+  .section{margin-top:64px;}
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    margin-bottom:26px;
+  }
+  .section-num{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--red);
+    font-size:13px;
+    border:1px solid var(--red);
+    border-radius:20px;
+    padding:3px 11px;
+    flex-shrink:0;
+  }
+  .section-head h2{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:26px;
+    margin:0;
+  }
+  .section-desc{color:var(--muted);font-size:14px;margin:-14px 0 26px 0;max-width:620px;line-height:1.6;}
+
+  /* ---------- Receipt-style KPI strip ---------- */
+  .receipt{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:14px;
+    padding:6px;
+    position:relative;
+  }
+  .receipt-inner{
+    background:repeating-linear-gradient(135deg, rgba(255,255,255,0.012) 0 2px, transparent 2px 8px);
+    border-radius:9px;
+    padding:22px 8px;
+  }
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:0;
+  }
+  .kpi{
+    padding:14px 18px;
+    border-right:1px dashed var(--divider);
+    text-align:left;
+  }
+  .kpi:last-child{border-right:none;}
+  .kpi-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--muted-2);
+    margin-bottom:8px;
+  }
+  .kpi-value{
+    font-family:'Fraunces', serif;
+    font-size:26px;
+    font-weight:600;
+    color:var(--cream);
+    line-height:1;
+  }
+  .kpi-value.accent{color:var(--red);}
+  .kpi-sub{font-size:11px;color:var(--muted);margin-top:6px;}
+
+  @media (max-width:900px){
+    .kpi-grid{grid-template-columns:repeat(3,1fr);}
+    .kpi{border-bottom:1px dashed var(--divider);}
+  }
+  @media (max-width:560px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  }
+
+  /* ---------- Cards / grid ---------- */
+  .grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  @media (max-width:860px){.grid-2{grid-template-columns:1fr;} .grid-3{grid-template-columns:1fr;}}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:14px;
+    padding:24px;
+  }
+  .card h3{
+    font-family:'Fraunces', serif;
+    font-size:17px;
+    font-weight:600;
+    margin:0 0 4px;
+  }
+  .card .card-sub{font-size:12.5px;color:var(--muted-2);margin-bottom:18px;}
+  canvas{max-width:100%;}
+
+  /* ---------- Segment list ---------- */
+  .seg-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:9px 0;
+    border-bottom:1px solid var(--divider);
+    font-size:13.5px;
+  }
+  .seg-row:last-child{border-bottom:none;}
+  .seg-name{color:var(--cream);}
+  .seg-bar-track{flex:1;height:5px;background:var(--divider);border-radius:3px;margin:0 14px;overflow:hidden;}
+  .seg-bar-fill{height:100%;background:var(--saffron);border-radius:3px;}
+  .seg-count{font-family:'IBM Plex Mono', monospace;color:var(--muted);font-size:12px;width:44px;text-align:right;}
+
+  /* ---------- ML metric pills ---------- */
+  .metric-strip{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:26px;}
+  .metric-pill{
+    background:var(--bg-alt);
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    padding:14px 20px;
+    flex:1;
+    min-width:110px;
+  }
+  .metric-pill .val{font-family:'Fraunces', serif;font-size:24px;font-weight:600;color:var(--red);}
+  .metric-pill .lbl{font-family:'IBM Plex Mono', monospace;font-size:10.5px;text-transform:uppercase;color:var(--muted-2);letter-spacing:0.05em;margin-top:4px;}
+
+  /* ---------- Risk grid heatmap ---------- */
+  .heatmap{width:100%;border-collapse:collapse;font-size:13px;}
+  .heatmap th{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    color:var(--muted-2);
+    text-align:center;
+    padding:8px 4px;
+    font-weight:500;
+  }
+  .heatmap td{
+    text-align:center;
+    padding:16px 8px;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:15px;
+    border-radius:8px;
+  }
+  .heatmap .rowlabel{
+    font-family:'IBM Plex Sans', sans-serif;
+    text-align:left;
+    font-weight:500;
+    font-size:12.5px;
+    color:var(--muted);
+    padding-left:4px;
+  }
+
+  /* ---------- Watchlist table ---------- */
+  table.watchlist{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.watchlist th{
+    text-align:left;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    color:var(--muted-2);
+    padding:9px 10px;
+    border-bottom:1px solid var(--divider);
+    font-weight:500;
+  }
+  table.watchlist td{
+    padding:9px 10px;
+    border-bottom:1px solid var(--divider);
+    color:var(--cream);
+  }
+  table.watchlist tr:last-child td{border-bottom:none;}
+  .risk-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    padding:2px 8px;
+    border-radius:20px;
+    background:var(--red-dim);
+    color:var(--red);
+  }
+  .pro-tag{color:var(--saffron);font-size:11px;}
+
+  /* ---------- Recommendations ---------- */
+  .rec-card{border-left:3px solid var(--muted-2);}
+  .rec-card.high{border-left-color:var(--red);}
+  .rec-card.medium{border-left-color:var(--saffron);}
+  .rec-card.low{border-left-color:var(--green);}
+  .rec-level{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    margin-bottom:10px;
+    display:inline-block;
+    padding:2px 10px;
+    border-radius:20px;
+  }
+  .rec-card.high .rec-level{color:var(--red); background:var(--red-dim);}
+  .rec-card.medium .rec-level{color:var(--saffron); background:var(--saffron-dim);}
+  .rec-card.low .rec-level{color:var(--green); background:var(--green-dim);}
+  .rec-card h3{font-size:16px;margin-bottom:10px;line-height:1.35;}
+  .rec-card p{font-size:13.5px;color:var(--muted);line-height:1.6;margin:0;}
+
+  footer{
+    margin-top:70px;
+    padding-top:22px;
+    border-top:1px dashed var(--divider);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--muted-2);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+
+  /* ---------- Chatbot widget ---------- */
+  #chatToggle{
+    position:fixed;
+    bottom:26px;
+    right:26px;
+    width:58px;
+    height:58px;
+    border-radius:50%;
+    background:var(--red);
+    border:none;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 8px 24px rgba(226,80,63,0.35);
+    z-index:999;
+    transition:transform 0.15s ease;
+  }
+  #chatToggle:hover{transform:scale(1.06);}
+  #chatToggle svg{width:26px;height:26px;}
+  #chatToggle .dot{
+    position:absolute;
+    top:8px;right:8px;
+    width:10px;height:10px;
+    border-radius:50%;
+    background:var(--green);
+    border:2px solid var(--bg);
+  }
+
+  #chatPanel{
+    position:fixed;
+    bottom:96px;
+    right:26px;
+    width:360px;
+    max-width:calc(100vw - 40px);
+    height:480px;
+    max-height:calc(100vh - 140px);
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.45);
+    display:none;
+    flex-direction:column;
+    overflow:hidden;
+    z-index:999;
+  }
+  #chatPanel.open{display:flex;}
+
+  .chat-head{
+    padding:16px 18px;
+    border-bottom:1px solid var(--divider);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--bg-alt);
+    flex-shrink:0;
+  }
+  .chat-head-title{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:15px;
+    color:var(--cream);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .chat-head-title .pulse{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 0 rgba(79,157,104,0.5);
+    animation:pulse 2s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(79,157,104,0.5);}
+    70%{box-shadow:0 0 0 6px rgba(79,157,104,0);}
+    100%{box-shadow:0 0 0 0 rgba(79,157,104,0);}
+  }
+  .chat-head-sub{font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--muted-2); margin-top:2px;}
+  #chatClose{
+    background:none;border:none;color:var(--muted);
+    cursor:pointer;font-size:18px;line-height:1;
+    padding:4px;
+  }
+  #chatClose:hover{color:var(--cream);}
+
+  #chatMessages{
+    flex:1;
+    overflow-y:auto;
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  #chatMessages::-webkit-scrollbar{width:6px;}
+  #chatMessages::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:3px;}
+
+  .msg{
+    max-width:85%;
+    padding:10px 13px;
+    border-radius:12px;
+    font-size:13px;
+    line-height:1.55;
+  }
+  .msg.bot{
+    background:var(--bg-alt);
+    border:1px solid var(--card-border);
+    color:var(--cream);
+    align-self:flex-start;
+    border-bottom-left-radius:3px;
+  }
+  .msg.user{
+    background:var(--red);
+    color:#fff;
+    align-self:flex-end;
+    border-bottom-right-radius:3px;
+  }
+  .msg b{color:var(--saffron);}
+  .msg.bot .msg-figure{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--saffron);
+    font-weight:600;
+  }
+
+  .chat-suggestions{
+    padding:0 16px 10px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    flex-shrink:0;
+  }
+  .chip{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--muted);
+    background:var(--bg-alt);
+    border:1px solid var(--card-border);
+    padding:5px 10px;
+    border-radius:20px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .chip:hover{border-color:var(--saffron); color:var(--saffron);}
+
+  .chat-input-row{
+    display:flex;
+    gap:8px;
+    padding:12px 14px;
+    border-top:1px solid var(--divider);
+    flex-shrink:0;
+  }
+  #chatInput{
+    flex:1;
+    background:var(--bg-alt);
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    padding:10px 12px;
+    color:var(--cream);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    outline:none;
+  }
+  #chatInput:focus{border-color:var(--red);}
+  #chatSend{
+    background:var(--red);
+    border:none;
+    border-radius:10px;
+    width:40px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  #chatSend svg{width:16px;height:16px;}
+
+  @media (max-width:480px){
+    #chatPanel{ right:14px; left:14px; width:auto; bottom:88px; }
+    #chatToggle{ right:18px; bottom:18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">Capstone Project · Customer Analytics + ML</div>
+  <h1>Zomato Customer Intelligence &amp;<br><em>Churn Prediction</em> Dashboard</h1>
+  <p class="sub">Order-level analytics and a Random Forest churn model built on a synthetic, Zomato-styled dataset - RFM segmentation, risk scoring, and business recommendations in one place.</p>
+  <p class="note" id="datasetNote">Loading dataset window…</p>
+  <div id="liveApiBar" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:12px 15px;border:1px solid var(--card-border);border-radius:10px;background:var(--bg-alt);font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);">
+    <span><span id="apiDot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--saffron);margin-right:8px;"></span><span id="apiStatus">LIVE ML API READY</span></span>
+    <span id="liveWeather">BERT sentiment + zero-shot customer-risk inference</span>
+    <button id="hfConnectBtn" style="border:1px solid #3b3024;background:#18140f;color:#f4ead7;border-radius:999px;padding:7px 12px;font:600 11px 'IBM Plex Mono',monospace;cursor:pointer">CONNECT HF</button>
+  </div>
+
+  <!-- SECTION 1: BUSINESS OVERVIEW -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <h2>Business Overview</h2>
+    </div>
+    <div class="receipt">
+      <div class="receipt-inner">
+        <div class="kpi-grid" id="kpiGrid"></div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:22px;">
+      <div class="card">
+        <h3>Orders &amp; revenue trend</h3>
+        <p class="card-sub">Monthly, across the full data window</p>
+        <canvas id="trendChart" height="240"></canvas>
+      </div>
+      <div class="card">
+        <h3>New vs. returning</h3>
+        <p class="card-sub">Customer base composition</p>
+        <canvas id="newReturningChart" height="240"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: CUSTOMER ANALYTICS -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <h2>Customer Analytics</h2>
+    </div>
+    <p class="section-desc">RFM segmentation (Recency · Frequency · Monetary) split into behavioural segments, each scored 1–5 per metric.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Revenue by segment</h3>
+        <p class="card-sub">Where the ₹ actually comes from</p>
+        <canvas id="segmentRevenueChart" height="260"></canvas>
+      </div>
+      <div class="card">
+        <h3>Customers per segment</h3>
+        <p class="card-sub">Headcount, ranked</p>
+        <div id="segmentList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: ML PREDICTION -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2>ML Prediction - Churn Model</h2>
+    </div>
+    <p class="section-desc">Random Forest classifier. Features computed as of a snapshot date; churn label = no order in the 60 days after that snapshot (leakage-safe split).</p>
+
+    <div class="metric-strip" id="metricStrip"></div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Feature importance</h3>
+        <p class="card-sub">What actually predicts churn</p>
+        <canvas id="featureChart" height="280"></canvas>
+      </div>
+      <div class="card">
+        <h3>Risk × value grid</h3>
+        <p class="card-sub">Customer count by churn-risk bucket and spend tier</p>
+        <table class="heatmap" id="riskGrid"></table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px;">
+      <h3>High-risk watchlist</h3>
+      <p class="card-sub">Highest lifetime value customers currently flagged high-risk</p>
+      <div style="overflow-x:auto;">
+        <table class="watchlist" id="watchlistTable"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: RECOMMENDATIONS -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2>Business Recommendations</h2>
+    </div>
+    <p class="section-desc">Derived directly from the risk × value grid above - not generic advice.</p>
+    <div class="grid-3" id="recGrid"></div>
+  </div>
+
+  <footer>
+    <span>Zomato Customer Intelligence - capstone build</span>
+    <span id="footerNote">Synthetic dataset · not real Zomato data</span>
+  </footer>
+
+</div>
+
+<!-- ---------- Chatbot widget ---------- -->
+<button id="chatToggle" aria-label="Open assistant">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+  </svg>
+  <span class="dot"></span>
+</button>
+
+<div id="chatPanel">
+  <div class="chat-head">
+    <div>
+      <div class="chat-head-title"><span class="pulse"></span>Dashboard Assistant</div>
+      <div class="chat-head-sub">Ask about the churn model, RFM segments, or KPIs</div>
+    </div>
+    <button id="chatClose" aria-label="Close">✕</button>
+  </div>
+  <div id="chatMessages"></div>
+  <div class="chat-suggestions" id="chatSuggestions"></div>
+  <div class="chat-input-row">
+    <input id="chatInput" type="text" placeholder="e.g. what's the churn rate?" autocomplete="off">
+    <button id="chatSend" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+const DATA = {"generated_at": "2026-08-27T07:46:42.013042", "business_overview": {"total_orders": 136597, "total_revenue": 60819657.07, "avg_order_value": 445.25, "active_customers_90d": 3917, "repeat_customer_pct": 96.3, "overall_churn_rate_pct": 39.9, "total_customers": 6000, "customers_with_orders": 5850, "data_window": {"start": "2024-09-01", "end": "2026-08-26"}}, "monthly_trend": [{"month": "2024-09", "orders": 394, "revenue": 176509.25}, {"month": "2024-10", "orders": 1176, "revenue": 523612.39}, {"month": "2024-11", "orders": 1802, "revenue": 791567.41}, {"month": "2024-12", "orders": 2430, "revenue": 1074611.67}, {"month": "2025-01", "orders": 3010, "revenue": 1330441.73}, {"month": "2025-02", "orders": 3707, "revenue": 1644999.17}, {"month": "2025-03", "orders": 4181, "revenue": 1856162.77}, {"month": "2025-04", "orders": 4559, "revenue": 2017442.53}, {"month": "2025-05", "orders": 5065, "revenue": 2242759.53}, {"month": "2025-06", "orders": 5280, "revenue": 2332245.95}, {"month": "2025-07", "orders": 5679, "revenue": 2521045.55}, {"month": "2025-08", "orders": 6087, "revenue": 2699744.79}, {"month": "2025-09", "orders": 6346, "revenue": 2804062.17}, {"month": "2025-10", "orders": 6922, "revenue": 3077247.72}, {"month": "2025-11", "orders": 7077, "revenue": 3161489.06}, {"month": "2025-12", "orders": 7626, "revenue": 3395067.18}, {"month": "2026-01", "orders": 7753, "revenue": 3457089.6}, {"month": "2026-02", "orders": 7950, "revenue": 3563912.19}, {"month": "2026-03", "orders": 8190, "revenue": 3660050.52}, {"month": "2026-04", "orders": 8049, "revenue": 3588538.57}, {"month": "2026-05", "orders": 8425, "revenue": 3770403.53}, {"month": "2026-06", "orders": 8489, "revenue": 3794984.41}, {"month": "2026-07", "orders": 9013, "revenue": 4037165.1}, {"month": "2026-08", "orders": 7387, "revenue": 3298504.28}], "customer_analytics": {"new_vs_returning": {"new_last_90d": 701, "returning_total": 5631, "one_time_total": 219}, "orders_per_customer_avg": 23.35, "segment_counts": {"Champions": 1319, "Hibernating": 1254, "Needs Attention": 999, "Potential Loyalists": 717, "New / Promising": 617, "At Risk (High Value)": 521, "Loyal Customers": 423}, "segment_revenue": {"At Risk (High Value)": 7060502.52, "Champions": 34350744.83, "Hibernating": 2396325.77, "Loyal Customers": 2380256.77, "Needs Attention": 3747212.94, "New / Promising": 1280196.93, "Potential Loyalists": 9604417.31}, "top_10pct_customer_revenue_share": 43.0}, "ml_section": {"snapshot_date": "2026-06-27", "labelled_customers": 5243, "metrics": {"accuracy": 0.837, "precision": 0.813, "recall": 0.825, "f1_score": 0.819, "roc_auc": 0.919, "train_size": 3932, "test_size": 1311, "churn_rate_in_labelled_set_pct": 44.8, "confusion_matrix": [[613, 111], [103, 484]]}, "top_features": [{"feature": "recency_days", "importance": 0.2778}, {"feature": "orders_prior_30d", "importance": 0.1728}, {"feature": "tenure_days", "importance": 0.1543}, {"feature": "orders_last_30d", "importance": 0.144}, {"feature": "monetary", "importance": 0.0545}, {"feature": "frequency", "importance": 0.0422}, {"feature": "order_momentum", "importance": 0.0405}, {"feature": "total_discount_used", "importance": 0.0398}, {"feature": "distinct_cuisines_tried", "importance": 0.0239}, {"feature": "avg_order_value", "importance": 0.0169}], "risk_bucket_counts": {"Low": 2267, "High": 1869, "Medium": 1107}, "risk_value_grid": {"Low": {"Low value": 433, "Mid value": 612, "High value": 1222}, "Medium": {"Low value": 377, "Mid value": 397, "High value": 333}, "High": {"Low value": 938, "Mid value": 738, "High value": 193}}, "watchlist": [{"customer_id": 100902, "churn_probability": 0.669, "monetary": 53358.0, "frequency": 113, "recency_days": 76, "city": "Pune", "is_pro_member": 0}, {"customer_id": 103784, "churn_probability": 0.77, "monetary": 50922.0, "frequency": 108, "recency_days": 164, "city": "Chennai", "is_pro_member": 1}, {"customer_id": 103596, "churn_probability": 0.741, "monetary": 40700.0, "frequency": 86, "recency_days": 117, "city": "Pune", "is_pro_member": 0}, {"customer_id": 105014, "churn_probability": 0.671, "monetary": 40450.0, "frequency": 86, "recency_days": 102, "city": "Delhi NCR", "is_pro_member": 0}, {"customer_id": 100565, "churn_probability": 0.664, "monetary": 34400.0, "frequency": 75, "recency_days": 89, "city": "Pune", "is_pro_member": 0}, {"customer_id": 104846, "churn_probability": 0.783, "monetary": 33250.0, "frequency": 72, "recency_days": 214, "city": "Mumbai", "is_pro_member": 0}, {"customer_id": 102913, "churn_probability": 0.777, "monetary": 32802.0, "frequency": 71, "recency_days": 182, "city": "Mumbai", "is_pro_member": 1}, {"customer_id": 100280, "churn_probability": 0.672, "monetary": 29448.0, "frequency": 61, "recency_days": 94, "city": "Delhi NCR", "is_pro_member": 0}, {"customer_id": 103202, "churn_probability": 0.819, "monetary": 26479.0, "frequency": 56, "recency_days": 211, "city": "Hyderabad", "is_pro_member": 0}, {"customer_id": 102511, "churn_probability": 0.733, "monetary": 24913.0, "frequency": 52, "recency_days": 100, "city": "Delhi NCR", "is_pro_member": 0}, {"customer_id": 104868, "churn_probability": 0.78, "monetary": 24553.0, "frequency": 52, "recency_days": 143, "city": "Mumbai", "is_pro_member": 0}, {"customer_id": 104263, "churn_probability": 0.767, "monetary": 23606.0, "frequency": 53, "recency_days": 126, "city": "Pune", "is_pro_member": 0}]}, "recommendations": [{"level": "High", "title": "193 high-value customers are at high churn risk", "action": "Targeted win-back offers (free delivery / cashback) before the 60-day inactivity mark, prioritised by monetary value."}, {"level": "Medium", "title": "1107 customers are medium-risk", "action": "Personalised cuisine recommendations + push notifications based on favourite cuisine to re-engage before they slide into high-risk."}, {"level": "Low", "title": "2267 customers are low-risk / loyal", "action": "Loyalty tier / Zomato Pro renewal nudges and referral incentives to convert them into brand advocates."}], "note": "Built on a synthetic, Zomato-styled dataset generated for this project \u2014 not real Zomato data."};
+
+const fmtINR = (n) => "₹" + Math.round(n).toLocaleString("en-IN");
+const fmtINRShort = (n) => {
+  if (n >= 1e7) return "₹" + (n/1e7).toFixed(2) + "Cr";
+  if (n >= 1e5) return "₹" + (n/1e5).toFixed(2) + "L";
+  if (n >= 1e3) return "₹" + (n/1e3).toFixed(1) + "K";
+  return "₹" + Math.round(n);
+};
+
+Chart.defaults.font.family = "'IBM Plex Sans', sans-serif";
+Chart.defaults.color = "#a89c87";
+Chart.defaults.borderColor = "#35291d";
+
+const RED = "#e2503f", SAFFRON = "#f0a63c", GREEN = "#4f9d68", CREAM="#f3ecdd", MUTED="#7d7261";
+
+// ---- note / dataset window ----
+document.getElementById("datasetNote").textContent =
+  `Data window: ${DATA.business_overview.data_window.start} → ${DATA.business_overview.data_window.end}  ·  ${DATA.note}`;
+
+// ---- SECTION 1: KPIs ----
+const bo = DATA.business_overview;
+const kpis = [
+  {label:"Total orders", value: bo.total_orders.toLocaleString("en-IN")},
+  {label:"Total revenue", value: fmtINRShort(bo.total_revenue)},
+  {label:"Avg order value", value: fmtINR(bo.avg_order_value)},
+  {label:"Active customers (90d)", value: bo.active_customers_90d.toLocaleString("en-IN")},
+  {label:"Repeat customer %", value: bo.repeat_customer_pct + "%"},
+  {label:"Churn rate", value: bo.overall_churn_rate_pct + "%", accent:true},
+];
+document.getElementById("kpiGrid").innerHTML = kpis.map(k => `
+  <div class="kpi">
+    <div class="kpi-label">${k.label}</div>
+    <div class="kpi-value ${k.accent ? 'accent':''}">${k.value}</div>
+  </div>`).join("");
+
+// ---- trend chart ----
+new Chart(document.getElementById("trendChart"), {
+  type: "line",
+  data: {
+    labels: DATA.monthly_trend.map(m => m.month),
+    datasets: [
+      {
+        label: "Revenue",
+        data: DATA.monthly_trend.map(m => m.revenue),
+        borderColor: RED,
+        backgroundColor: "rgba(226,80,63,0.12)",
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        borderWidth: 2,
+        yAxisID: "y"
+      }
+    ]
+  },
+  options: {
+    responsive:true,
+    plugins:{ legend:{display:false} },
+    scales:{
+      x:{ ticks:{ maxTicksLimit:8, font:{size:10} }, grid:{ display:false } },
+      y:{ ticks:{ callback:(v)=>fmtINRShort(v), font:{size:10} }, grid:{ color:"#241e15" } }
+    }
+  }
+});
+
+// ---- new vs returning ----
+const nvr = DATA.customer_analytics.new_vs_returning;
+new Chart(document.getElementById("newReturningChart"), {
+  type: "doughnut",
+  data: {
+    labels: ["Returning (2+ orders)", "New (last 90d)", "One-time"],
+    datasets: [{
+      data: [nvr.returning_total, nvr.new_last_90d, nvr.one_time_total],
+      backgroundColor: [GREEN, SAFFRON, MUTED],
+      borderColor: "#211c15",
+      borderWidth: 3
+    }]
+  },
+  options: {
+    responsive:true,
+    cutout:"62%",
+    plugins:{ legend:{ position:"bottom", labels:{ boxWidth:10, font:{size:11.5} } } }
+  }
+});
+
+// ---- segment revenue ----
+const segRev = DATA.customer_analytics.segment_revenue;
+const segRevSorted = Object.entries(segRev).sort((a,b)=>b[1]-a[1]);
+new Chart(document.getElementById("segmentRevenueChart"), {
+  type: "bar",
+  data: {
+    labels: segRevSorted.map(s=>s[0]),
+    datasets: [{
+      data: segRevSorted.map(s=>s[1]),
+      backgroundColor: RED,
+      borderRadius: 5,
+      barThickness: 22
+    }]
+  },
+  options: {
+    indexAxis: "y",
+    responsive:true,
+    plugins:{ legend:{display:false} },
+    scales:{
+      x:{ ticks:{ callback:(v)=>fmtINRShort(v), font:{size:10} }, grid:{color:"#241e15"} },
+      y:{ ticks:{ font:{size:11} }, grid:{ display:false } }
+    }
+  }
+});
+
+// ---- segment list ----
+const segCounts = DATA.customer_analytics.segment_counts;
+const segSorted = Object.entries(segCounts).sort((a,b)=>b[1]-a[1]);
+const maxSeg = segSorted[0][1];
+document.getElementById("segmentList").innerHTML = segSorted.map(([name,count]) => `
+  <div class="seg-row">
+    <span class="seg-name">${name}</span>
+    <span class="seg-bar-track"><span class="seg-bar-fill" style="width:${(count/maxSeg*100).toFixed(0)}%"></span></span>
+    <span class="seg-count">${count}</span>
+  </div>`).join("");
+
+// ---- SECTION 3: ML ----
+const m = DATA.ml_section.metrics;
+const metricDefs = [
+  {label:"Accuracy", val:(m.accuracy*100).toFixed(1)+"%"},
+  {label:"Precision", val:(m.precision*100).toFixed(1)+"%"},
+  {label:"Recall", val:(m.recall*100).toFixed(1)+"%"},
+  {label:"F1 score", val:(m.f1_score*100).toFixed(1)+"%"},
+  {label:"ROC-AUC", val:m.roc_auc},
+  {label:"Test set size", val:m.test_size.toLocaleString("en-IN")},
+];
+document.getElementById("metricStrip").innerHTML = metricDefs.map(d => `
+  <div class="metric-pill">
+    <div class="val">${d.val}</div>
+    <div class="lbl">${d.label}</div>
+  </div>`).join("");
+
+// ---- feature importance ----
+const feats = DATA.ml_section.top_features.slice(0,8).reverse();
+new Chart(document.getElementById("featureChart"), {
+  type: "bar",
+  data: {
+    labels: feats.map(f=>f.feature.replaceAll("_"," ")),
+    datasets: [{
+      data: feats.map(f=>f.importance),
+      backgroundColor: SAFFRON,
+      borderRadius: 5,
+      barThickness: 16
+    }]
+  },
+  options: {
+    indexAxis:"y",
+    responsive:true,
+    plugins:{ legend:{display:false} },
+    scales:{
+      x:{ ticks:{ font:{size:10} }, grid:{color:"#241e15"} },
+      y:{ ticks:{ font:{size:10.5} }, grid:{ display:false } }
+    }
+  }
+});
+
+// ---- risk x value grid ----
+const grid = DATA.ml_section.risk_value_grid;
+const riskOrder = ["High","Medium","Low"];
+const valueOrder = ["Low value","Mid value","High value"];
+const riskColor = {High: "rgba(226,80,63,0.85)", Medium:"rgba(240,166,60,0.85)", Low:"rgba(79,157,104,0.85)"};
+let gridHtml = "<tr><th></th>" + valueOrder.map(v=>`<th>${v}</th>`).join("") + "</tr>";
+riskOrder.forEach(r => {
+  gridHtml += `<tr><td class="rowlabel">${r} risk</td>` +
+    valueOrder.map(v => {
+      const val = (grid[r] && grid[r][v]) ? grid[r][v] : 0;
+      return `<td style="background:${riskColor[r]}22; color:${riskColor[r].replace('0.85','1')}">${val}</td>`;
+    }).join("") + "</tr>";
+});
+document.getElementById("riskGrid").innerHTML = gridHtml;
+
+// ---- watchlist table ----
+const wl = DATA.ml_section.watchlist;
+let wlHtml = `<tr><th>Customer ID</th><th>Churn prob.</th><th>Lifetime value</th><th>Orders</th><th>Last order</th><th>City</th></tr>`;
+wl.forEach(row => {
+  wlHtml += `<tr>
+    <td>#${row.customer_id} ${row.is_pro_member ? '<span class="pro-tag">PRO</span>' : ''}</td>
+    <td><span class="risk-tag">${(row.churn_probability*100).toFixed(0)}%</span></td>
+    <td>${fmtINR(row.monetary)}</td>
+    <td>${row.frequency}</td>
+    <td>${row.recency_days}d ago</td>
+    <td>${row.city}</td>
+  </tr>`;
+});
+document.getElementById("watchlistTable").innerHTML = wlHtml;
+
+// ---- SECTION 4: Recommendations ----
+document.getElementById("recGrid").innerHTML = DATA.recommendations.map(r => `
+  <div class="card rec-card ${r.level.toLowerCase()}">
+    <span class="rec-level">${r.level} risk</span>
+    <h3>${r.title}</h3>
+    <p>${r.action}</p>
+  </div>`).join("");
+
+// =========================================================
+// ---- CHATBOT: LIVE ML INFERENCE + DASHBOARD ANALYST ----
+// Live Hugging Face Inference Providers: DistilBERT sentiment + BART-MNLI zero-shot ML.
+// Token is entered at runtime and stored only in sessionStorage.
+// =========================================================
+(function(){
+  const toggle=document.getElementById("chatToggle"), panel=document.getElementById("chatPanel"), closeBtn=document.getElementById("chatClose"), messagesEl=document.getElementById("chatMessages"), inputEl=document.getElementById("chatInput"), sendBtn=document.getElementById("chatSend"), suggestionsEl=document.getElementById("chatSuggestions");
+  const status=document.getElementById("apiStatus"), dot=document.getElementById("apiDot"), connectBtn=document.getElementById("hfConnectBtn");
+  const HF_SENTIMENT="https://router.huggingface.co/hf-inference/models/distilbert/distilbert-base-uncased-finetuned-sst-2-english";
+  const HF_ZERO_SHOT="https://router.huggingface.co/hf-inference/models/facebook/bart-large-mnli";
+  const SUGGESTIONS=["Run sentiment analysis on: I loved the food and delivery","Analyze this customer complaint: food was late and support was poor","Is this customer likely to churn?","What are the top churn predictors?","Why is churn high?","Which segment should we target?"];
+  let hfToken=sessionStorage.getItem("zomato_hf_token")||"";
+
+  function addMessage(text,sender){const d=document.createElement("div");d.className="msg "+sender;d.innerHTML=text;messagesEl.appendChild(d);messagesEl.scrollTop=messagesEl.scrollHeight;}
+  function renderSuggestions(){suggestionsEl.innerHTML=SUGGESTIONS.map(s=>`<span class="chip">${s}</span>`).join("");suggestionsEl.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{inputEl.value=c.textContent;handleSend();}));}
+  function setStatus(ok,text){status.textContent=text;dot.style.background=ok?"var(--green)":"var(--red)";}
+  function connectHF(){const token=prompt("Paste your Hugging Face access token (hf_...). It will be stored only for this browser session:",hfToken);if(token===null)return;hfToken=token.trim();if(!hfToken){sessionStorage.removeItem("zomato_hf_token");setStatus(false,"HF TOKEN NOT SET · LIVE ML DISABLED");return;}sessionStorage.setItem("zomato_hf_token",hfToken);setStatus(true,"LIVE ML API CONNECTED · Hugging Face");addMessage("Connected to <b>live Hugging Face ML inference</b>. BERT sentiment and zero-shot customer-risk analysis are ready.","bot");}
+  connectBtn.addEventListener("click",connectHF);
+
+  async function hfPost(url,payload){if(!hfToken)throw new Error("HF_TOKEN_MISSING");const res=await fetch(url,{method:"POST",headers:{"Authorization":"Bearer "+hfToken,"Content-Type":"application/json"},body:JSON.stringify(payload)});const text=await res.text();let data;try{data=JSON.parse(text)}catch{data={error:text}}if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);return data;}
+  async function sentiment(text){return hfPost(HF_SENTIMENT,{inputs:text});}
+  async function riskClassification(text){return hfPost(HF_ZERO_SHOT,{inputs:text,parameters:{candidate_labels:["high churn risk","low churn risk","delivery complaint","positive experience","pricing or discount issue"],multi_label:false}});}
+  function pct(x){return (Number(x)*100).toFixed(1)+"%";}
+
+  async function liveSentimentAnswer(text){try{const raw=await sentiment(text);const arr=Array.isArray(raw)?(Array.isArray(raw[0])?raw[0]:raw):[];const best=arr.slice().sort((a,b)=>b.score-a.score)[0];if(!best)throw new Error("No classification returned");setStatus(true,"LIVE ML CONNECTED · DistilBERT sentiment");return `<span class="msg-badge">LIVE BERT INFERENCE</span><br><b>${best.label}</b> sentiment with <span class="msg-figure">${pct(best.score)}</span> confidence.<br><span style="opacity:.7">Model: DistilBERT · Hugging Face Inference API</span>`;}catch(e){if(e.message==="HF_TOKEN_MISSING")return `Click <b>CONNECT HF</b> and enter your Hugging Face token to run the live BERT model.`;setStatus(false,"LIVE ML ERROR · CHECK TOKEN / CREDITS");return `The live BERT call failed: <span style="opacity:.75">${e.message}</span>`;}}
+  async function liveRiskAnswer(text){try{const raw=await riskClassification(text),labels=raw.labels||[],scores=raw.scores||[],top=labels.map((l,i)=>({label:l,score:scores[i]})).sort((a,b)=>b.score-a.score)[0];if(!top)throw new Error("No risk classification returned");setStatus(true,"LIVE ML CONNECTED · Zero-shot risk classifier");const risk=top.label==="high churn risk"?"HIGH":top.label==="low churn risk"?"LOW":"SIGNAL";return `<span class="msg-badge">LIVE ML RISK INFERENCE</span><br><b>${risk}</b> - strongest signal: <b>${top.label}</b> at <span class="msg-figure">${pct(top.score)}</span>.<br><br><span style="opacity:.78">This is a live zero-shot text signal; the dashboard's trained Random Forest remains the primary churn model.</span>`;}catch(e){if(e.message==="HF_TOKEN_MISSING")return `Click <b>CONNECT HF</b> first to run the live ML risk classifier.`;setStatus(false,"LIVE ML ERROR · CHECK TOKEN / CREDITS");return `The live ML risk call failed: <span style="opacity:.75">${e.message}</span>`;}}
+
+  async function answer(q){
+    const t=q.toLowerCase(),bo=DATA.business_overview,ca=DATA.customer_analytics,ml=DATA.ml_section,m=ml.metrics;
+    if(/sentiment|bert|distilbert|tone/.test(t)&&q.length>12){const text=q.replace(/^(run|do|perform)?\s*(a\s*)?(live\s*)?(sentiment analysis|bert analysis)\s*(on|of)?\s*[:\-]?\s*/i,"").trim();return liveSentimentAnswer(text||q);}
+    if(/is this customer likely to churn|churn from this complaint|churn risk.*text|risk.*complaint|classify.*risk|zero.?shot/.test(t))return liveRiskAnswer(q);
+    if(/churn rate|overall churn/.test(t))return `Overall churn rate is <span class="msg-figure">${bo.overall_churn_rate_pct}%</span>. In the ML-labelled set, it's ${m.churn_rate_in_labelled_set_pct}%.`;
+    if(/which model|what model|algorithm/.test(t))return `The dashboard's trained model is a <b>Random Forest classifier</b>. The chatbot also calls <b>DistilBERT</b> and <b>BART-MNLI</b> live through Hugging Face.`;
+    if(/roc.?auc|auc score/.test(t))return `ROC-AUC is <span class="msg-figure">${m.roc_auc}</span>.`;
+    if(/accuracy/.test(t))return `Accuracy is <span class="msg-figure">${(m.accuracy*100).toFixed(1)}%</span>, with precision ${(m.precision*100).toFixed(1)}% and recall ${(m.recall*100).toFixed(1)}%.`;
+    if(/precision/.test(t))return `Precision is <span class="msg-figure">${(m.precision*100).toFixed(1)}%</span>.`;
+    if(/recall/.test(t))return `Recall is <span class="msg-figure">${(m.recall*100).toFixed(1)}%</span>.`;
+    if(/f1/.test(t))return `F1 score is <span class="msg-figure">${(m.f1_score*100).toFixed(1)}%</span>.`;
+    if(/top.*(predictor|feature|driver)|what drives|why.*churn/.test(t)){const top4=ml.top_features.slice(0,4).map(f=>`${f.feature.replaceAll("_"," ")} (${(f.importance*100).toFixed(0)}%)`).join(", ");return `Top churn predictors: <b>${top4}</b>.`;}
+    if(/segment|rfm/.test(t)){const e=Object.entries(ca.segment_counts).sort((a,b)=>b[1]-a[1]),top=e[0];return `There are ${e.length} RFM segments. The largest is <b>${top[0]}</b> with ${top[1]} customers.`;}
+    if(/high.?risk|risk bucket|how many.*risk/.test(t)){const rb=ml.risk_bucket_counts;return `Risk breakdown - High: <span class="msg-figure">${rb.High}</span>, Medium: <span class="msg-figure">${rb.Medium}</span>, Low: <span class="msg-figure">${rb.Low}</span>.`;}
+    if(/revenue/.test(t))return `Total revenue is <span class="msg-figure">${fmtINRShort(bo.total_revenue)}</span> from ${bo.total_orders.toLocaleString("en-IN")} orders.`;
+    if(/average order|aov/.test(t))return `Average order value is <span class="msg-figure">${fmtINR(bo.avg_order_value)}</span>.`;
+    if(/repeat customer/.test(t))return `${bo.repeat_customer_pct}% of customers are repeat customers (2+ orders).`;
+    if(/dataset|real data|synthetic|fake data/.test(t))return `This dashboard uses a <b>synthetic, Zomato-styled dataset</b> - not real Zomato data.`;
+    if(/leakage|snapshot|methodology|how.*(built|works)/.test(t))return `Features are computed up to the snapshot date (${ml.snapshot_date}); the churn label uses the following 60 days.`;
+    if(/recommend|action|what.*do/.test(t))return DATA.recommendations.map(r=>`<b>${r.level} risk:</b> ${r.action}`).join("<br><br>");
+    if(/^(hi|hello|hey|hola)\b/.test(t))return `Hey! I'm your <b>live ML dashboard analyst</b>. Ask me to run BERT sentiment or a live customer-risk classification.`;
+    return `Try <b>“Run sentiment analysis on: …”</b>, <b>“Is this customer likely to churn?”</b>, or ask about the Random Forest model, ROC-AUC, RFM segments, risk buckets, revenue, or recommendations.`;
+  }
+  async function handleSend(){const q=inputEl.value.trim();if(!q)return;addMessage(q,"user");inputEl.value="";const loading=document.createElement("div");loading.className="msg bot";loading.textContent="Running live ML…";messagesEl.appendChild(loading);try{loading.innerHTML=await answer(q)}catch(e){loading.textContent="Something went wrong while processing that request."}messagesEl.scrollTop=messagesEl.scrollHeight;}
+  toggle.addEventListener("click",()=>{panel.classList.add("open");toggle.style.display="none";if(messagesEl.children.length===0){addMessage(`Hi! I'm the <b>Customer Intelligence AI Analyst</b>. I can answer from the dashboard and run <b>live BERT/ML inference</b> on customer text.`,`bot`);renderSuggestions();if(!hfToken)addMessage(`Live ML is ready. Click <b>CONNECT HF</b> and paste your Hugging Face token to enable real inference.`,`bot`);}});
+  closeBtn.addEventListener("click",()=>{panel.classList.remove("open");toggle.style.display="flex"});sendBtn.addEventListener("click",handleSend);inputEl.addEventListener("keydown",e=>{if(e.key==="Enter")handleSend()});
+  if(hfToken)setStatus(true,"LIVE ML API CONNECTED · Hugging Face");else setStatus(false,"LIVE ML READY · CONNECT HF TO RUN MODELS");
+})();
+</script>
+</body>
+</html>
